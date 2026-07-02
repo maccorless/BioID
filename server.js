@@ -1,6 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const piexif = require("piexifjs");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -64,6 +65,25 @@ const ERROR_EXPLANATIONS = {
   ImageTooBright: "The overall image is too bright.",
 };
 
+// Canvas-generated JPEGs (both the camera-capture and upload-resize paths in
+// app.js draw through <canvas>.toDataURL) carry no EXIF at all, so BioID's
+// MissingTimeStamp check always fires. Stamp a DateTimeOriginal of "now"
+// before forwarding -- this is a live check, so "now" is the correct value
+// regardless of whether the source was the camera or an uploaded file.
+function stampExifDateTime(imageDataUrl) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const now = new Date();
+  const exifDate = `${now.getFullYear()}:${pad(now.getMonth() + 1)}:${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+  const exifObj = {
+    "0th": {},
+    Exif: { [piexif.ExifIFD.DateTimeOriginal]: exifDate },
+    GPS: {},
+  };
+  const exifStr = piexif.dump(exifObj);
+  return piexif.insert(exifStr, imageDataUrl);
+}
+
 function friendlyErrors(errors) {
   return (errors || []).map((e) => ({
     code: e.Code,
@@ -82,16 +102,21 @@ app.post("/api/quality-check", async (req, res) => {
 
   const { imageDataUrl, issuer } = req.body || {};
   if (!imageDataUrl || !imageDataUrl.startsWith("data:image")) {
-    return res
-      .status(400)
-      .json({
-        error: "imageDataUrl must be a data:image/... base64 data URL.",
-      });
+    return res.status(400).json({
+      error: "imageDataUrl must be a data:image/... base64 data URL.",
+    });
   }
 
   const chosenIssuer = issuer || "ICAO";
   const url = `${BIOID_ENDPOINT}/qualitycheck?full=true&issuer=${encodeURIComponent(chosenIssuer)}`;
   const basicAuth = Buffer.from(`${APP_ID}:${APP_SECRET}`).toString("base64");
+
+  let stampedImageDataUrl = imageDataUrl;
+  try {
+    stampedImageDataUrl = stampExifDateTime(imageDataUrl);
+  } catch (exifErr) {
+    console.warn("Could not stamp EXIF DateTimeOriginal:", exifErr);
+  }
 
   // DEBUG: log auth details to help diagnose 401s
   console.debug("[BioID DEBUG] APP_ID       :", APP_ID);
@@ -109,7 +134,7 @@ app.post("/api/quality-check", async (req, res) => {
         Authorization: `Basic ${basicAuth}`,
         "Content-Type": "text/plain",
       },
-      body: imageDataUrl,
+      body: stampedImageDataUrl,
     });
 
     const text = await bioidResponse.text();
@@ -128,7 +153,7 @@ app.post("/api/quality-check", async (req, res) => {
 
     if (!bioidResponse.ok) {
       return res.status(bioidResponse.status).json({
-        error: `BioID API returned ${bioidResponse.status}`,
+        error: `Scan service returned ${bioidResponse.status}`,
         details: text,
       });
     }
@@ -139,7 +164,7 @@ app.post("/api/quality-check", async (req, res) => {
     } catch (parseErr) {
       return res
         .status(502)
-        .json({ error: "Could not parse BioID response", raw: text });
+        .json({ error: "Could not parse scan service response", raw: text });
     }
 
     res.json({
@@ -151,9 +176,10 @@ app.post("/api/quality-check", async (req, res) => {
     });
   } catch (err) {
     console.error("BioID request failed:", err);
-    res
-      .status(502)
-      .json({ error: "Failed to reach BioID service", details: String(err) });
+    res.status(502).json({
+      error: "Failed to reach the accreditation scan service",
+      details: String(err),
+    });
   }
 });
 
