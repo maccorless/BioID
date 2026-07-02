@@ -6,9 +6,10 @@ const piexif = require("piexifjs");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Data-URLs of resized photos are a few hundred KB to a couple MB.
-// 8mb covers typical phone-camera captures comfortably.
-app.use(express.json({ limit: "8mb" }));
+// Data-URLs of resized photos (now capped at 3000px longest side, see
+// MAX_DIMENSION in app.js) can run a few MB larger than before; 16mb
+// leaves comfortable headroom.
+app.use(express.json({ limit: "16mb" }));
 app.use(express.static(path.join(__dirname, "public")));
 
 const BIOID_ENDPOINT =

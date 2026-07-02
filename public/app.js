@@ -1,33 +1,39 @@
-const fileInput = document.getElementById('fileInput');
-const btnUpload = document.getElementById('btnUpload');
-const btnCamera = document.getElementById('btnCamera');
-const btnCancelCamera = document.getElementById('btnCancelCamera');
-const btnCapture = document.getElementById('btnCapture');
-const btnCheck = document.getElementById('btnCheck');
-const btnRetake = document.getElementById('btnRetake');
+const fileInput = document.getElementById("fileInput");
+const btnUpload = document.getElementById("btnUpload");
+const btnCamera = document.getElementById("btnCamera");
+const btnCancelCamera = document.getElementById("btnCancelCamera");
+const btnCapture = document.getElementById("btnCapture");
+const btnCheck = document.getElementById("btnCheck");
+const btnRetake = document.getElementById("btnRetake");
 
-const cameraSection = document.getElementById('cameraSection');
-const previewSection = document.getElementById('previewSection');
-const resultSection = document.getElementById('resultSection');
+const cameraSection = document.getElementById("cameraSection");
+const previewSection = document.getElementById("previewSection");
+const resultSection = document.getElementById("resultSection");
 
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const previewImg = document.getElementById('previewImg');
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const previewImg = document.getElementById("previewImg");
 
-const resultBanner = document.getElementById('resultBanner');
-const errorList = document.getElementById('errorList');
-const rawJson = document.getElementById('rawJson');
-const issuerSelect = document.getElementById('issuer');
+const resultBanner = document.getElementById("resultBanner");
+const errorList = document.getElementById("errorList");
+const rawJson = document.getElementById("rawJson");
+const issuerSelect = document.getElementById("issuer");
 
 let mediaStream = null;
 let currentDataUrl = null;
 
-// Longest side to resize to before sending. ICAO checks want a reasonably
-// high-res crop (min ~876x1063 after crop), so we keep this generous.
-const MAX_DIMENSION = 1600;
+// Longest side to resize to before sending. ICAO checks the CROPPED FACE
+// against a min ~876x1063, not the full frame -- for loosely-framed photos
+// where the face is a smaller fraction of the image, 1600px wasn't enough
+// headroom and shrank faces below BioID's minimum eye-distance (240px).
+const MAX_DIMENSION = 3000;
 
-function show(el) { el.classList.remove('hidden'); }
-function hide(el) { el.classList.add('hidden'); }
+function show(el) {
+  el.classList.remove("hidden");
+}
+function hide(el) {
+  el.classList.add("hidden");
+}
 
 function resetToStart() {
   hide(previewSection);
@@ -37,9 +43,9 @@ function resetToStart() {
 }
 
 // --- Upload flow ---
-btnUpload.addEventListener('click', () => fileInput.click());
+btnUpload.addEventListener("click", () => fileInput.click());
 
-fileInput.addEventListener('change', () => {
+fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -48,10 +54,14 @@ fileInput.addEventListener('change', () => {
 });
 
 // --- Camera flow ---
-btnCamera.addEventListener('click', async () => {
+btnCamera.addEventListener("click", async () => {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 1706 } },
+      video: {
+        facingMode: "user",
+        width: { ideal: 1280 },
+        height: { ideal: 1706 },
+      },
       audio: false,
     });
     video.srcObject = mediaStream;
@@ -59,11 +69,11 @@ btnCamera.addEventListener('click', async () => {
     hide(resultSection);
     show(cameraSection);
   } catch (err) {
-    alert('Could not access camera: ' + err.message);
+    alert("Could not access camera: " + err.message);
   }
 });
 
-btnCancelCamera.addEventListener('click', stopCamera);
+btnCancelCamera.addEventListener("click", stopCamera);
 
 function stopCamera() {
   if (mediaStream) {
@@ -73,15 +83,15 @@ function stopCamera() {
   hide(cameraSection);
 }
 
-btnCapture.addEventListener('click', () => {
+btnCapture.addEventListener("click", () => {
   const w = video.videoWidth;
   const h = video.videoHeight;
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   ctx.drawImage(video, 0, 0, w, h);
   stopCamera();
-  loadImageIntoCanvas(canvas.toDataURL('image/jpeg', 0.92));
+  loadImageIntoCanvas(canvas.toDataURL("image/jpeg", 0.92));
 });
 
 // --- Shared: resize + preview ---
@@ -95,10 +105,10 @@ function loadImageIntoCanvas(dataUrl) {
 
     canvas.width = width;
     canvas.height = height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     ctx.drawImage(img, 0, 0, width, height);
 
-    currentDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    currentDataUrl = canvas.toDataURL("image/jpeg", 0.92);
     previewImg.src = currentDataUrl;
 
     hide(resultSection);
@@ -107,22 +117,25 @@ function loadImageIntoCanvas(dataUrl) {
   img.src = dataUrl;
 }
 
-btnRetake.addEventListener('click', () => {
+btnRetake.addEventListener("click", () => {
   resetToStart();
-  fileInput.value = '';
+  fileInput.value = "";
 });
 
 // --- Submit to backend ---
-btnCheck.addEventListener('click', async () => {
+btnCheck.addEventListener("click", async () => {
   if (!currentDataUrl) return;
   btnCheck.disabled = true;
-  btnCheck.textContent = 'Checking...';
+  btnCheck.textContent = "Checking...";
 
   try {
-    const res = await fetch('/api/quality-check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageDataUrl: currentDataUrl, issuer: issuerSelect.value }),
+    const res = await fetch("/api/quality-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageDataUrl: currentDataUrl,
+        issuer: issuerSelect.value,
+      }),
     });
     const data = await res.json();
 
@@ -132,21 +145,24 @@ btnCheck.addEventListener('click', async () => {
     }
     renderResult(data);
   } catch (err) {
-    renderServerError({ error: 'Network error', details: err.message });
+    renderServerError({ error: "Network error", details: err.message });
   } finally {
     btnCheck.disabled = false;
-    btnCheck.textContent = 'Check photo';
+    btnCheck.textContent = "Check photo";
   }
 });
 
 function renderServerError(data) {
   show(resultSection);
-  resultBanner.className = 'result-banner fail';
-  resultBanner.textContent = '⚠ ' + (data.error || 'Something went wrong');
-  errorList.innerHTML = '';
+  resultBanner.className = "result-banner fail";
+  resultBanner.textContent = "⚠ " + (data.error || "Something went wrong");
+  errorList.innerHTML = "";
   if (data.details) {
-    const li = document.createElement('li');
-    li.textContent = typeof data.details === 'string' ? data.details : JSON.stringify(data.details);
+    const li = document.createElement("li");
+    li.textContent =
+      typeof data.details === "string"
+        ? data.details
+        : JSON.stringify(data.details);
     errorList.appendChild(li);
   }
   rawJson.textContent = JSON.stringify(data, null, 2);
@@ -156,16 +172,16 @@ function renderResult(data) {
   show(resultSection);
 
   const passed = data.success && data.errors.length === 0;
-  resultBanner.className = 'result-banner ' + (passed ? 'pass' : 'fail');
+  resultBanner.className = "result-banner " + (passed ? "pass" : "fail");
   resultBanner.textContent = passed
     ? `✔ PASS — meets ${data.issuer} photo requirements`
-    : `✘ FAIL — ${data.errors.length} issue${data.errors.length === 1 ? '' : 's'} found (${data.issuer} standard)`;
+    : `✘ FAIL — ${data.errors.length} issue${data.errors.length === 1 ? "" : "s"} found (${data.issuer} standard)`;
 
-  errorList.innerHTML = '';
+  errorList.innerHTML = "";
   data.errors.forEach((e) => {
-    const li = document.createElement('li');
-    const codeEl = document.createElement('span');
-    codeEl.className = 'code';
+    const li = document.createElement("li");
+    const codeEl = document.createElement("span");
+    codeEl.className = "code";
     codeEl.textContent = e.code;
     li.appendChild(codeEl);
     li.appendChild(document.createTextNode(e.message));
