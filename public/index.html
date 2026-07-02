@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DTEC Olympic Photo Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="doc-mark">
+        <svg class="seal" viewBox="0 0 48 48" aria-hidden="true">
+          <circle cx="24" cy="24" r="21" fill="none" stroke="currentColor" stroke-width="1.5"/>
+          <circle cx="24" cy="24" r="16" fill="none" stroke="currentColor" stroke-width="1"/>
+          <path d="M24 10 L26.5 18 L35 18 L28 23 L30.5 31 L24 26 L17.5 31 L20 23 L13 18 L21.5 18 Z" fill="currentColor"/>
+        </svg>
+        <span class="kicker">ICAO 9303 &middot; Biometric Photo Validation</span>
+      </div>
+      <h1>Passport / Visa Photo Check</h1>
+      <p class="subtitle">Upload a photo or use your camera. We'll run it through BioID's ICAO quality check.</p>
+    </header>
+
+    <section class="controls">
+      <div class="issuer-picker">
+        <label for="issuer">Standard</label>
+        <select id="issuer">
+          <option value="ICAO">ICAO (default / most countries)</option>
+          <option value="US">United States</option>
+          <option value="GB">United Kingdom</option>
+          <option value="DE">Germany</option>
+          <option value="AT">Austria</option>
+          <option value="CH">Switzerland</option>
+          <option value="NL">Netherlands</option>
+          <option value="IN">India</option>
+          <option value="BR">Brazil</option>
+          <option value="TR">Turkey</option>
+        </select>
+      </div>
+
+      <div class="source-buttons">
+        <button id="btnUpload" class="btn">Upload photo</button>
+        <button id="btnCamera" class="btn">Use camera</button>
+        <input id="fileInput" type="file" accept="image/*" hidden />
+      </div>
+    </section>
+
+    <section id="cameraSection" class="camera-section hidden">
+      <div class="frame">
+        <div class="frame-inner scan">
+          <video id="video" autoplay playsinline></video>
+        </div>
+      </div>
+      <div class="camera-actions">
+        <button id="btnCapture" class="btn primary">Capture</button>
+        <button id="btnCancelCamera" class="btn">Cancel</button>
+      </div>
+    </section>
+
+    <section id="previewSection" class="preview-section hidden">
+      <div class="frame">
+        <div class="frame-inner">
+          <img id="previewImg" alt="Selected photo preview" />
+        </div>
+      </div>
+      <div class="preview-actions">
+        <button id="btnCheck" class="btn primary">Check photo</button>
+        <button id="btnRetake" class="btn">Choose different photo</button>
+      </div>
+    </section>
+
+    <section id="resultSection" class="result-section hidden">
+      <div id="resultBanner" class="result-banner"></div>
+      <ul id="errorList" class="error-list"></ul>
+      <details id="rawDetails" class="raw-details">
+        <summary>Raw API response</summary>
+        <pre id="rawJson"></pre>
+      </details>
+    </section>
+
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <footer class="doc-footer">
+      <span>Test harness &mdash; not an official government or BioID service</span>
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
